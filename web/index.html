@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tinyrenderer-rs</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: grid; place-items: center; }
+  /* The game draws a small square frame; scale it up to fill the window, as
+     the native build's ScalingMode::Fill does. */
+  canvas {
+    width: min(100vw, 100vh);
+    height: min(100vw, 100vh);
+    image-rendering: pixelated;
+    cursor: pointer;
+  }
+  #status {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    color: #ccc; font: 16px system-ui, sans-serif; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="screen" width="320" height="320"></canvas>
+<div id="status">loading…</div>
+<script type="module">
+  import init, { Game } from "./pkg/tinyrenderer_wasm.js";
+
+  const canvas = document.getElementById("screen");
+  const status = document.getElementById("status");
+  const ctx = canvas.getContext("2d");
+  const wasm = await init();
+  status.textContent = "click to start";
+
+  let game = null;
+
+  // The game is made on the first click: browsers start audio only after one.
+  canvas.addEventListener("click", () => {
+    canvas.requestPointerLock();
+    if (game !== null) return;
+    status.textContent = "";
+    game = new Game();
+    const started = performance.now();
+    let last = started;
+    const tick = (now) => {
+      game.frame(now - last, now - started);
+      last = now;
+      const w = game.frame_width();
+      const h = game.frame_height();
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      // A view of the frame in the wasm memory, made afresh each frame: the
+      // memory's buffer changes when it grows.
+      const pixels = new Uint8ClampedArray(wasm.memory.buffer, game.frame_ptr(), w * h * 4);
+      ctx.putImageData(new ImageData(pixels, w, h), 0, 0);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (game === null || e.repeat) return;
+    game.key_down(e.code);
+  });
+  window.addEventListener("keyup", (e) => {
+    if (game !== null) game.key_up(e.code);
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (game !== null && document.pointerLockElement === canvas) {
+      game.mouse_move(e.movementX, e.movementY);
+    }
+  });
+</script>
+</body>
+</html>

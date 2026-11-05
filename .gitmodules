@@ -1,0 +1,3 @@
+[submodule "tinyrenderer-rs"]
+	path = tinyrenderer-rs
+	url = https://github.com/kshitijl/tinyrenderer-rs.git
