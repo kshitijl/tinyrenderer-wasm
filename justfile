@@ -1,7 +1,7 @@
 # Build the wasm and its JavaScript bindings into web/pkg.
 build:
     cargo build --release
-    wasm-bindgen --target web --out-dir web/pkg target/wasm32-unknown-unknown/release/tinyrenderer_wasm.wasm
+    wasm-bindgen --target web --no-typescript --out-dir web/pkg target/wasm32-unknown-unknown/release/tinyrenderer_wasm.wasm
 
 # Build, then serve the page at http://localhost:8000.
 serve: build

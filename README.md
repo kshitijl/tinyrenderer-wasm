@@ -18,7 +18,7 @@ cargo install wasm-bindgen-cli --version 0.2.129
 just serve
 ```
 
-Then open http://localhost:8000 and click.
+Then open http://localhost:8000 and press start.
 
 ## How it works
 
@@ -32,12 +32,18 @@ Then open http://localhost:8000 and click.
   onto a 320 x 320 canvas scaled up to fill the window. Keys go to the game by their
   `KeyboardEvent.code`, which uses the same names as winit's `KeyCode`. A click locks the
   pointer for mouse look.
-- The bytebeat music is tinyrenderer-rs's `audio.rs` as it is, on cpal's Web Audio backend. The
-  game starts on the first click because browsers start audio only after one.
+- The wasm loads when start is pressed.
+- The bytebeat music is tinyrenderer-rs's `audio.rs` as it is, on cpal's Web Audio backend. It
+  starts muted: the page replaces the browser's `AudioContext` with a subclass that stays
+  suspended until the unmute button, whatever cpal asks. So the bindings are imported on start,
+  after the swap: they keep the `AudioContext` there is when they load.
 - Clippy lints that tinyrenderer-rs's code trips are allowed on those modules here
   (`src/lib.rs`), rather than fixed there.
 
 `just check` runs `cargo fmt --check` and clippy. `cargo` builds for wasm by default here
 (`.cargo/config.toml`), which also tells getrandom to use the browser's crypto.
+
+`tools/sync-to-site.sh` builds and copies `web/` to the klauria.tech repo's
+`public/demos/tinyrenderer-rs/`, where it's embedded in the tinyrenderer-rs page.
 
 To use a newer tinyrenderer-rs, `git -C tinyrenderer-rs pull` and commit the submodule.

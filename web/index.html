@@ -5,42 +5,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>tinyrenderer-rs</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  body { display: grid; place-items: center; }
-  /* The game draws a small square frame; scale it up to fill the window, as
-     the native build's ScalingMode::Fill does. */
+  html, body { margin: 0; background: #000; }
+  /* Sized by its width, so a frame on another page can be fitted to it. */
+  body { max-width: 60rem; margin: 0 auto; }
+  .controls { display: flex; gap: 0.5rem; padding: 0.5rem; }
+  button { font: 15px system-ui, sans-serif; padding: 0.3rem 0.9rem; }
+  /* The game draws a small square frame; scale it up to the width, as the
+     native build's ScalingMode::Fill does. */
   canvas {
-    width: min(100vw, 100vh);
-    height: min(100vw, 100vh);
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
     image-rendering: pixelated;
-    cursor: pointer;
-  }
-  #status {
-    position: fixed; inset: 0; display: grid; place-items: center;
-    color: #ccc; font: 16px system-ui, sans-serif; pointer-events: none;
   }
 </style>
 </head>
 <body>
+<div class="controls">
+  <button id="start">start</button>
+  <button id="sound">unmute</button>
+</div>
 <canvas id="screen" width="320" height="320"></canvas>
-<div id="status">loading…</div>
 <script type="module">
-  import init, { Game } from "./pkg/tinyrenderer_wasm.js";
+  // The game's sound starts muted. Its audio library (cpal) makes its own
+  // AudioContext, so the page swaps in a subclass that stays suspended while
+  // muted, even when cpal asks it to resume.
+  let muted = true;
+  const realResume = AudioContext.prototype.resume;
+  class MutableAudioContext extends AudioContext {
+    static instances = [];
+    constructor(...args) {
+      super(...args);
+      MutableAudioContext.instances.push(this);
+      if (muted) this.suspend();
+    }
+    resume() {
+      return muted ? Promise.resolve() : realResume.call(this);
+    }
+  }
+  window.AudioContext = MutableAudioContext;
+
+  const soundButton = document.getElementById("sound");
+  soundButton.addEventListener("click", () => {
+    muted = !muted;
+    soundButton.textContent = muted ? "unmute" : "mute";
+    for (const context of MutableAudioContext.instances) {
+      if (muted) context.suspend();
+      else realResume.call(context);
+    }
+  });
 
   const canvas = document.getElementById("screen");
-  const status = document.getElementById("status");
   const ctx = canvas.getContext("2d");
-  const wasm = await init();
-  status.textContent = "click to start";
-
+  const startButton = document.getElementById("start");
   let game = null;
 
-  // The game is made on the first click: browsers start audio only after one.
+  // Clicking the game locks the pointer, for mouse look (Escape unlocks it).
   canvas.addEventListener("click", () => {
+    if (game !== null) canvas.requestPointerLock();
+  });
+
+  // The wasm (about 6 MB, mostly the models) loads only when asked for.
+  startButton.addEventListener("click", async () => {
+    startButton.disabled = true;
     canvas.requestPointerLock();
-    if (game !== null) return;
-    status.textContent = "";
-    game = new Game();
+    // Imported here, not at the top: the bindings keep the AudioContext there
+    // is when they load, which must be the subclass above.
+    const bindings = await import("./pkg/tinyrenderer_wasm.js");
+    const wasm = await bindings.default();
+    game = new bindings.Game();
+    startButton.hidden = true;
     const started = performance.now();
     let last = started;
     const tick = (now) => {
