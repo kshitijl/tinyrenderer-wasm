@@ -10,8 +10,8 @@
   body { max-width: 60rem; margin: 0 auto; }
   .controls { display: flex; gap: 0.5rem; padding: 0.5rem; }
   button { font: 15px system-ui, sans-serif; padding: 0.3rem 0.9rem; }
-  /* The game draws a small square frame; scale it up to the width, as the
-     native build's ScalingMode::Fill does. */
+  /* The game draws a small frame, square unless split screen is on; scale it
+     up to the width, as the native build's ScalingMode::Fill does. */
   canvas {
     display: block;
     width: 100%;
@@ -84,6 +84,8 @@
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
+        // Split screen (key 5) makes the frame twice as wide.
+        canvas.style.aspectRatio = `${w} / ${h}`;
       }
       // A view of the frame in the wasm memory, made afresh each frame: the
       // memory's buffer changes when it grows.
