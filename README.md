@@ -32,6 +32,11 @@ Then open http://localhost:8000 and press start.
   onto a 320 x 320 canvas scaled up to fill the window. Keys go to the game by their
   `KeyboardEvent.code`, which uses the same names as winit's `KeyCode`. A click locks the
   pointer for mouse look.
+- Each frame advances the game in equal steps of at most 5 ms, and by at most 250 ms in all.
+  The game moves things by speed times the step and checks only where they land, so long steps
+  (a hidden tab's next frame covers the whole gap; 60 fps is already too long, rarely) let the
+  player through the maze's outer wall, and then a guard that chased them out panics looking up
+  its cell. The numbers are in `src/lib.rs`, by `MAX_STEP`.
 - The wasm loads when start is pressed.
 - The bytebeat music is tinyrenderer-rs's `audio.rs` as it is, on cpal's Web Audio backend. It
   starts muted: the page replaces the browser's `AudioContext` with a subclass that stays

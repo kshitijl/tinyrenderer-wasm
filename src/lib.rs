@@ -161,7 +161,21 @@ pub struct Game {
     frame: Vec<u8>,
     frame_width: u32,
     frame_height: u32,
+    /// Time in the game: the sum of the steps it has been advanced by.
+    game_time: Duration,
 }
+
+/// The longest step the game is advanced by at once. The game moves things by speed times the
+/// step and checks only where they land, so long steps let the player through the maze's outer
+/// wall, after which guards that chased them out panic looking up their cell off the map. Measured
+/// in a headless native run walking at random for 10 minutes, 24 games each: steps of 8 ms never
+/// got out, 16 ms (60 fps) did once, 33 ms 10 times; in steps of at most 5 ms, frames of 16 to
+/// 250 ms never did.
+const MAX_STEP: Duration = Duration::from_millis(5);
+
+/// The most game time one frame can cover. A hidden tab makes long frames (the browser stops
+/// drawing it, and the next frame covers the whole gap), and the game shouldn't jump ahead.
+const MAX_FRAME: Duration = Duration::from_millis(250);
 
 #[wasm_bindgen]
 impl Game {
@@ -179,19 +193,28 @@ impl Game {
             frame: vec![0; (size * size * 4) as usize],
             frame_width: size,
             frame_height: size,
+            game_time: Duration::ZERO,
         }
     }
 
-    /// Advance the game and draw a frame, as the native `RedrawRequested` does.
-    pub fn frame(&mut self, since_last_frame_ms: f64, since_start_ms: f64) {
-        let since_last_frame = Duration::from_secs_f64(since_last_frame_ms.max(0.) / 1000.);
-        let since_start = Duration::from_secs_f64(since_start_ms.max(0.) / 1000.);
-        match self.world.update(since_last_frame, since_start) {
-            game::ResolutionChangeAction::DoNothing => {}
-            game::ResolutionChangeAction::ChangeTo { x, y } => {
-                self.frame = vec![0; (x * y * 4) as usize];
-                self.frame_width = x;
-                self.frame_height = y;
+    /// Advance the game and draw a frame, as the native `RedrawRequested` does, but advancing
+    /// the game in equal steps of at most MAX_STEP.
+    pub fn frame(&mut self, since_last_frame_ms: f64) {
+        let since_last_frame =
+            Duration::from_secs_f64(since_last_frame_ms.max(0.) / 1000.).min(MAX_FRAME);
+        let num_steps = since_last_frame.div_duration_f64(MAX_STEP).ceil().max(1.) as u32;
+        let step = since_last_frame / num_steps;
+        for _ in 0..num_steps {
+            self.game_time += step;
+            // Only the first step can change the resolution: a key press is seen once, then
+            // cleared.
+            match self.world.update(step, self.game_time) {
+                game::ResolutionChangeAction::DoNothing => {}
+                game::ResolutionChangeAction::ChangeTo { x, y } => {
+                    self.frame = vec![0; (x * y * 4) as usize];
+                    self.frame_width = x;
+                    self.frame_height = y;
+                }
             }
         }
         self.world.draw(&mut self.frame);

@@ -75,10 +75,9 @@
     const wasm = await bindings.default();
     game = new bindings.Game();
     startButton.hidden = true;
-    const started = performance.now();
-    let last = started;
+    let last = performance.now();
     const tick = (now) => {
-      game.frame(now - last, now - started);
+      game.frame(now - last);
       last = now;
       const w = game.frame_width();
       const h = game.frame_height();
