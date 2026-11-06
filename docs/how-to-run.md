@@ -43,6 +43,14 @@ files are compiled as they are.
   then a click on the game, lock the pointer for mouse look, where the browser has pointer
   lock: iPhone Safari has none, and calling it there threw and stopped start before the wasm
   loaded.
+- On a touchscreen with no mouse, touch controls appear below the game once it starts. They
+  press the game's keys and move it like the mouse, so the game itself is unchanged. Arrows
+  hold W, A, S and D while touched. Examine is F, which the game wants held; the owner asked
+  for it to be a toggle instead (Nov 6), so a tap holds it and the next lets go. The owner also
+  asked for only wireframe (1) and split screen (5), labelled by name rather than number; each
+  tap presses the key once. Dragging on the game turns the camera, scaled so a drag across its
+  width turns about 90 degrees (the mouse's 1/1000 radian per pixel would make that about 20
+  on a phone).
 - Each frame advances the game in equal steps of at most 5 ms, and by at most 250 ms in all.
   The game moves things by speed times the step and checks only where they land, so long steps
   (a hidden tab's next frame covers the whole gap; 60 fps is already too long, rarely) let the

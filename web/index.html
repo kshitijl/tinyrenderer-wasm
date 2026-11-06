@@ -18,6 +18,41 @@
     aspect-ratio: 1;
     image-rendering: pixelated;
   }
+  /* Touch controls, shown below the game on touchscreens. Dragging on the
+     game turns the camera; touch-action stops that scrolling or zooming the
+     page, and the user-select lines stop a long press selecting a label. */
+  canvas, .touch { touch-action: none; }
+  .touch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .touch[hidden] { display: none; }
+  .touch button {
+    color: #ddd;
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 0.5rem;
+  }
+  .touch button.down, .touch button[aria-pressed="true"] { background: #556; }
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 3.6rem);
+    grid-template-rows: repeat(2, 3.6rem);
+    gap: 0.4rem;
+  }
+  .dpad button { font-size: 1.4rem; }
+  .dpad [data-hold="KeyW"] { grid-column: 2; }
+  .dpad [data-hold="KeyA"] { grid-column: 1; grid-row: 2; }
+  .dpad [data-hold="KeyS"] { grid-column: 2; grid-row: 2; }
+  .dpad [data-hold="KeyD"] { grid-column: 3; grid-row: 2; }
+  .toggles { display: flex; flex-direction: column; gap: 0.4rem; }
+  .toggles button { min-width: 7rem; min-height: 2.8rem; }
 </style>
 </head>
 <body>
@@ -26,6 +61,19 @@
   <button id="sound">unmute</button>
 </div>
 <canvas id="screen" width="320" height="320"></canvas>
+<div class="touch" id="touch" hidden>
+  <div class="dpad">
+    <button data-hold="KeyW" aria-label="forward">▲</button>
+    <button data-hold="KeyA" aria-label="left">◀</button>
+    <button data-hold="KeyS" aria-label="back">▼</button>
+    <button data-hold="KeyD" aria-label="right">▶</button>
+  </div>
+  <div class="toggles">
+    <button id="examine" aria-pressed="false">examine</button>
+    <button data-tap="Digit1">wireframe</button>
+    <button data-tap="Digit5">split screen</button>
+  </div>
+</div>
 <script type="module">
   // The game's sound starts muted. Its audio library (cpal) makes its own
   // AudioContext, so the page swaps in a subclass that stays suspended while
@@ -77,6 +125,7 @@
     const wasm = await bindings.default();
     game = new bindings.Game();
     startButton.hidden = true;
+    touchControls.hidden = !isTouchscreen;
     let last = performance.now();
     const tick = (now) => {
       game.frame(now - last);
@@ -110,6 +159,69 @@
       game.mouse_move(e.movementX, e.movementY);
     }
   });
+
+  // Touch controls. They stand in for the keyboard and mouse: buttons press
+  // the game's keys, and a drag on the game moves it like the mouse. They're
+  // shown, once the game starts, only on a touchscreen with no mouse.
+  const isTouchscreen = matchMedia("(hover: none) and (pointer: coarse)").matches;
+  const touchControls = document.getElementById("touch");
+
+  // The arrows hold their key down while touched (W, A, S, D).
+  for (const button of touchControls.querySelectorAll("[data-hold]")) {
+    const code = button.dataset.hold;
+    const release = () => {
+      button.classList.remove("down");
+      game.key_up(code);
+    };
+    button.addEventListener("pointerdown", (e) => {
+      button.setPointerCapture(e.pointerId);
+      button.classList.add("down");
+      game.key_down(code);
+    });
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+  }
+
+  // Wireframe and split screen press their key once per tap (1 and 5): the
+  // game acts on a key when it's first pressed.
+  for (const button of touchControls.querySelectorAll("[data-tap]")) {
+    button.addEventListener("click", () => {
+      game.key_down(button.dataset.tap);
+      game.key_up(button.dataset.tap);
+    });
+  }
+
+  // Examine is F, which the game wants held; here a tap holds it and the
+  // next tap lets go.
+  const examineButton = document.getElementById("examine");
+  examineButton.addEventListener("click", () => {
+    const examining = examineButton.getAttribute("aria-pressed") !== "true";
+    examineButton.setAttribute("aria-pressed", String(examining));
+    if (examining) game.key_down("KeyF");
+    else game.key_up("KeyF");
+  });
+
+  // A drag across the whole width of the game turns the camera by about 90
+  // degrees. The game turns by 1/1000 radian per pixel the mouse moves, which
+  // on a phone would be about 20 degrees for the same drag.
+  const DRAG_ACROSS_RADIANS = Math.PI / 2;
+  const drags = new Map(); // pointerId -> where it was last seen
+  canvas.addEventListener("pointerdown", (e) => {
+    if (game === null || e.pointerType !== "touch") return;
+    canvas.setPointerCapture(e.pointerId);
+    drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const last = drags.get(e.pointerId);
+    if (last === undefined) return;
+    const scale = (DRAG_ACROSS_RADIANS * 1000) / canvas.clientWidth;
+    game.mouse_move((e.clientX - last.x) * scale, (e.clientY - last.y) * scale);
+    last.x = e.clientX;
+    last.y = e.clientY;
+  });
+  const endDrag = (e) => drags.delete(e.pointerId);
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
 </script>
 </body>
 </html>
