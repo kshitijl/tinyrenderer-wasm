@@ -28,8 +28,8 @@ repo, written with one (Claude), compiles its source for the browser without tou
 history: the original is a git submodule (`tinyrenderer-rs/`), and its renderer and game source
 files are compiled as they are.
 
-`README.md` is empty on purpose: the owner wants no LLM prose in any of their GitHub READMEs (Nov
-5), so the docs are here.
+`README.md` is the owner's own words: they want no LLM prose in any of their GitHub READMEs
+(Nov 5), so the docs are here.
 
 - `src/lib.rs` includes tinyrenderer-rs's `game`, `render`, `image`, `mesh` and `audio` modules
   from the submodule with `#[path]`, and supplies what its native `main.rs` would: the `Args`
