@@ -61,14 +61,16 @@
   let game = null;
 
   // Clicking the game locks the pointer, for mouse look (Escape unlocks it).
+  // iPhone Safari has no pointer lock, so it's asked for only where it exists.
+  const lockPointer = () => canvas.requestPointerLock?.();
   canvas.addEventListener("click", () => {
-    if (game !== null) canvas.requestPointerLock();
+    if (game !== null) lockPointer();
   });
 
   // The wasm (about 6 MB, mostly the models) loads only when asked for.
   startButton.addEventListener("click", async () => {
     startButton.disabled = true;
-    canvas.requestPointerLock();
+    lockPointer();
     // Imported here, not at the top: the bindings keep the AudioContext there
     // is when they load, which must be the subclass above.
     const bindings = await import("./pkg/tinyrenderer_wasm.js");

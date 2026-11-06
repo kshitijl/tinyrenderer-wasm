@@ -40,7 +40,9 @@ files are compiled as they are.
 - `web/index.html` runs the loop: each frame the game draws into an RGBA buffer, which is copied
   onto a 320 x 320 canvas scaled up to the page's width. Keys go to the game by their
   `KeyboardEvent.code`, which uses the same names as winit's `KeyCode`. The start button, and
-  then a click on the game, lock the pointer for mouse look.
+  then a click on the game, lock the pointer for mouse look, where the browser has pointer
+  lock: iPhone Safari has none, and calling it there threw and stopped start before the wasm
+  loaded.
 - Each frame advances the game in equal steps of at most 5 ms, and by at most 250 ms in all.
   The game moves things by speed times the step and checks only where they land, so long steps
   (a hidden tab's next frame covers the whole gap; 60 fps is already too long, rarely) let the
